@@ -1,6 +1,6 @@
 {
   "name": "vscode-cli-install",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "build/index.js",
   "scripts": {
@@ -28,5 +28,10 @@
     "adm-zip": "^0.5.9",
     "tar": "^6.1.11"
   },
-  "bin": "./build/index.js"
+  "bin": "./build/index.js",
+  "homepage": "https://github.com/1nchhh/vscode-cli-install#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/1nchhh/vscode-cli-install.git"
+  }
 }
