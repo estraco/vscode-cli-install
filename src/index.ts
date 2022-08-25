@@ -747,7 +747,7 @@ async function linkAction(double: {
         ? double['symlink-directory'] :
         single['s']
             ? single['s'] :
-            (path.join(process.platform === 'linux' ? '/usr/bin' : process.env.HOME, 'bin'));
+            (process.platform === 'linux' ? '/usr/bin' : path.join(process.env.HOME, 'bin'));
 
     if (typeof symlinkdir !== 'string') {
         console.error(`Invalid symlink directory: ${symlinkdir}`);
