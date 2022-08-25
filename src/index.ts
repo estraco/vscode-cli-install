@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import http from 'http';
 import https from 'https';
+import cp from 'child_process';
+
 import tar from 'tar';
 import AdmZip from 'adm-zip';
 
@@ -64,17 +66,217 @@ function handleRes(response: http.IncomingMessage, filename: string, file: fs.Wr
 
     response.pipe(file);
 
-    response.on('data', () => {
-        const progress = (file.bytesWritten / maxLength);
+    process.stdout.write(`Downloading ${filename}... [`);
 
-        process.stdout.cursorTo(0);
-        process.stdout.clearLine(1);
+    let progress = 0;
 
+    const progressInterval = setInterval(() => {
         if (maxDownloadStatusLen < 10) {
+            process.stdout.cursorTo(0);
+            process.stdout.clearLine(1);
+
             process.stdout.write(`Downloading ${filename}... ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
         } else {
-            process.stdout.write(`Downloading ${filename}... [${'#'.repeat(progress * maxDownloadStatusLen)}${'-'.repeat(maxDownloadStatusLen - progress * maxDownloadStatusLen)}] ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
+            process.stdout.cursorTo(`Downloading ${filename}... [`.length);
+            // process.stdout.write(`Downloading ${filename}... [${'#'.repeat(progress * maxDownloadStatusLen)}${'-'.repeat(maxDownloadStatusLen - progress * maxDownloadStatusLen)}] ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
+            process.stdout.write(`${'#'.repeat(progress * maxDownloadStatusLen)}${'-'.repeat(maxDownloadStatusLen - progress * maxDownloadStatusLen)}] ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
         }
+    }, 5);
+
+    response.on('data', () => {
+        progress = (file.bytesWritten / maxLength);
+    });
+
+    response.on('end', () => {
+        clearInterval(progressInterval);
+        process.stdout.cursorTo(0);
+        process.stdout.clearLine(1);
+        process.stdout.write(`Downloaded ${filename} (${maxLength} bytes)
+
+`);
+    });
+}
+
+function getVersions(build?: string): Promise<{
+    url: string;
+    name: string;
+    version: string;
+    productVersion: string;
+    hash: string;
+    timestamp: string;
+    sha256hash: string;
+    supportsFastUpdate: boolean;
+    build: string;
+    platform: {
+        os: 'win32-user',
+        prettyname: 'Windows User Installer (32 bit)'
+    } | {
+        os: 'win32',
+        prettyname: 'Windows System Installer (32 bit)'
+    } | {
+        os: 'win32-archive',
+        prettyname: 'Windows .zip (32 bit)'
+    } | {
+        os: 'win32-x64-user',
+        prettyname: 'Windows User Installer (64 bit)'
+    } | {
+        os: 'win32-x64',
+        prettyname: 'Windows System Installer (64 bit)'
+    } | {
+        os: 'win32-x64-archive',
+        prettyname: 'Windows .zip (64 bit)'
+    } | {
+        os: 'win32-arm64-user',
+        prettyname: 'Windows User Installer (64-bit ARM)'
+    } | {
+        os: 'win32-arm64-archive',
+        prettyname: 'Windows .zip (64-bit ARM)'
+    } | {
+        os: 'win32-arm64',
+        prettyname: 'Windows System Installer (64-bit ARM)'
+    } | {
+        os: 'linux-deb-ia32',
+        prettyname: 'Linux .deb (32 bit)'
+    } | {
+        os: 'linux-rpm-ia32',
+        prettyname: 'Linux .rpm (32 bit)'
+    } | {
+        os: 'linux-ia32',
+        prettyname: 'Linux .tar.gz (32 bit)'
+    } | {
+        os: 'linux-deb-x64',
+        prettyname: 'Linux .deb (64 bit)'
+    } | {
+        os: 'linux-rpm-x64',
+        prettyname: 'Linux .rpm (64 bit)'
+    } | {
+        os: 'linux-x64',
+        prettyname: 'Linux .tar.gz (64 bit)'
+    } | {
+        os: 'linux-armhf',
+        prettyname: 'Linux .tar.gz (32-bit ARM)'
+    } | {
+        os: 'linux-deb-armhf',
+        prettyname: 'Linux .deb (32-bit ARM)'
+    } | {
+        os: 'linux-rpm-armhf',
+        prettyname: 'Linux .rpm (32-bit ARM)'
+    } | {
+        os: 'linux-arm64',
+        prettyname: 'Linux .tar.gz (64-bit ARM)'
+    } | {
+        os: 'linux-deb-arm64',
+        prettyname: 'Linux .deb (64-bit ARM)'
+    } | {
+        os: 'linux-rpm-arm64',
+        prettyname: 'Linux .rpm (64-bit ARM)'
+    } | {
+        os: 'darwin-arm64',
+        prettyname: 'Mac for Apple Silicon'
+    } | {
+        os: 'darwin',
+        prettyname: 'Mac for Intel Chip'
+    } | {
+        os: 'darwin-universal',
+        prettyname: 'Mac Universal Build'
+    } | {
+        os: 'win32-user',
+        prettyname: 'Windows User Installer (32 bit)'
+    } | {
+        os: 'win32',
+        prettyname: 'Windows System Installer (32 bit)'
+    } | {
+        os: 'win32-archive',
+        prettyname: 'Windows .zip (32 bit)'
+    } | {
+        os: 'win32-x64-user',
+        prettyname: 'Windows User Installer (64 bit)'
+    } | {
+        os: 'win32-x64',
+        prettyname: 'Windows System Installer (64 bit)'
+    } | {
+        os: 'win32-x64-archive',
+        prettyname: 'Windows .zip (64 bit)'
+    } | {
+        os: 'win32-arm64-user',
+        prettyname: 'Windows User Installer (64-bit ARM)'
+    } | {
+        os: 'win32-arm64-archive',
+        prettyname: 'Windows .zip (64-bit ARM)'
+    } | {
+        os: 'win32-arm64',
+        prettyname: 'Windows System Installer (64-bit ARM)'
+    } | {
+        os: 'linux-deb-ia32',
+        prettyname: 'Linux .deb (32 bit)'
+    } | {
+        os: 'linux-rpm-ia32',
+        prettyname: 'Linux .rpm (32 bit)'
+    } | {
+        os: 'linux-ia32',
+        prettyname: 'Linux .tar.gz (32 bit)'
+    } | {
+        os: 'linux-deb-x64',
+        prettyname: 'Linux .deb (64 bit)'
+    } | {
+        os: 'linux-rpm-x64',
+        prettyname: 'Linux .rpm (64 bit)'
+    } | {
+        os: 'linux-x64',
+        prettyname: 'Linux .tar.gz (64 bit)'
+    } | {
+        os: 'linux-armhf',
+        prettyname: 'Linux .tar.gz (32-bit ARM)'
+    } | {
+        os: 'linux-deb-armhf',
+        prettyname: 'Linux .deb (32-bit ARM)'
+    } | {
+        os: 'linux-rpm-armhf',
+        prettyname: 'Linux .rpm (32-bit ARM)'
+    } | {
+        os: 'linux-arm64',
+        prettyname: 'Linux .tar.gz (64-bit ARM)'
+    } | {
+        os: 'linux-deb-arm64',
+        prettyname: 'Linux .deb (64-bit ARM)'
+    } | {
+        os: 'linux-rpm-arm64',
+        prettyname: 'Linux .rpm (64-bit ARM)'
+    } | {
+        os: 'darwin-arm64',
+        prettyname: 'Mac for Apple Silicon'
+    } | {
+        os: 'darwin',
+        prettyname: 'Mac for Intel Chip'
+    } | {
+        os: 'darwin-universal',
+        prettyname: 'Mac Universal Build'
+    }
+}[]> {
+    if (build && !['stable', 'insiders'].includes(build)) {
+        return Promise.reject(new Error('Invalid build type'));
+    }
+
+    return new Promise((resolve, reject) => {
+        const req = https.get(`https://code.visualstudio.com/sha${build ? `?build=${build}` : ''}`, (res) => {
+            let data = '';
+
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            res.on('end', () => {
+                try {
+                    resolve(JSON.parse(data).products);
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        });
+
+        req.on('error', (err) => {
+            reject(err);
+        });
     });
 }
 
@@ -102,6 +304,7 @@ if (![
     'download',
     'install',
     'link',
+    'update',
     'help'
 ].includes(action)) {
     console.error(`Invalid action: ${action}`);
@@ -121,6 +324,7 @@ const sections: {
     download: Section;
     install: Section;
     link: Section;
+    update: Section;
 } = {
     sections: [
         {
@@ -138,7 +342,7 @@ const sections: {
                 '--action',
                 '-a'
             ],
-            description: 'The action to perform. Can be one of download, install, link, or help',
+            description: 'The action to perform. Can be one of download, install, link, update, or help',
             required: false,
             default: 'download'
         }
@@ -252,6 +456,30 @@ const sections: {
                 ? '/usr/bin'
                 : path.join(process.env.HOME, 'bin')
         }
+    ],
+    update: [
+        {
+            keys: [
+                '--build',
+                '-b'
+            ],
+            description: 'The build to update. Can either be stable or insiders',
+            required: false,
+            default: 'stable'
+        },
+        {
+            keys: [
+                '--install-directory',
+                '-d'
+            ],
+            description: 'The directory to update',
+            required: false,
+            default: process.platform === 'win32'
+                ? '"C:\\Program Files\\Microsoft VS Code" or "C:\\Program Files\\Microsoft VS Code Insiders"'
+                : process.platform === 'darwin'
+                    ? '/Applications/Visual Studio Code or /Applications/Visual Studio Code - Insiders'
+                    : '/usr/share/code or /usr/share/code-insiders'
+        }
     ]
 };
 
@@ -275,7 +503,11 @@ function printSection(sectionName: keyof typeof sections) {
     console.log();
 }
 
-if (action === 'help') {
+async function helpAction(double: {
+    [key: string]: string | boolean
+}, single: {
+    [key: string]: string | boolean
+}) {
     const section = double['section'] || single['s'] || 'all';
 
     if (typeof section !== 'string') {
@@ -308,90 +540,108 @@ if (action === 'help') {
         case 'link':
             printSection('link');
             break;
+        case 'update':
+            printSection('update');
+            break;
         default:
             console.error(`Invalid section: ${section}`);
             process.exit(1);
     }
 
     process.exit(0);
-} else if (action === 'download') {
-    const build = double['build'] || single['b'] || 'stable';
+}
 
-    if (typeof build !== 'string') {
-        console.error(`Invalid build: ${build}`);
-        process.exit(1);
-    }
+async function downloadAction(double: {
+    [key: string]: string | boolean
+}, single: {
+    [key: string]: string | boolean
+}): Promise<string> {
+    return new Promise((resolve) => {
+        const build = double['build'] || single['b'] || 'stable';
 
-    if (!['stable', 'insiders'].includes(build)) {
-        console.error(`Invalid build: ${build}`);
-        process.exit(1);
-    }
-
-    const os =
-        process.platform === 'win32'
-            ? `win32-${process.arch}-archive`
-            : process.platform === 'darwin'
-                ? 'darwin-universal'
-                : process.platform === 'linux'
-                    ? `linux-${process.arch}`
-                    : 'unknown';
-
-    if (os === 'unknown') {
-        console.error(`Unsupported platform: ${process.platform}`);
-        process.exit(1);
-    }
-
-    const url = `https://code.visualstudio.com/sha/download?build=${build === 'insiders' ? 'insider' : build}&os=${os}`;
-    const filename = double['filename'] || single['f'] || `vscode-${build}-${os}-${Date.now()}.${process.platform === 'linux' ? 'tar.gz' : 'zip'}`;
-    const downloadDir = double['download-directory'] || single['d'] || path.join(process.cwd(), 'downloads');
-
-    if (typeof filename !== 'string') {
-        console.error(`Invalid filename: ${filename}`);
-        process.exit(1);
-    }
-    if (typeof downloadDir !== 'string') {
-        console.error(`Invalid download directory: ${downloadDir}`);
-        process.exit(1);
-    }
-
-    const downloadPath = path.join(downloadDir, filename);
-
-    if (!fs.existsSync(downloadDir)) {
-        fs.mkdirSync(downloadDir, { recursive: true });
-    }
-
-    console.log(`Downloading ${url} to ${downloadPath}`);
-
-    const file = fs.createWriteStream(downloadPath);
-
-    const request = https.get(url, response => {
-        if (response.statusCode === 302) {
-            console.log(`Redirecting to ${response.headers.location}`);
-            request.abort();
-            https.get(response.headers.location, response => {
-                handleRes(response, filename, file);
-            }).on('error', error => {
-                console.error(error);
-                process.exit(1);
-            }).on('end', () => {
-                console.log(`Downloaded ${filename}`);
-                process.exit(0);
-            });
-        } else {
-            handleRes(response, filename, file);
+        if (typeof build !== 'string') {
+            console.error(`Invalid build: ${build}`);
+            process.exit(1);
         }
-    });
 
-    file.on('finish', () => {
-        file.close();
-        console.log(`\nDownloaded ${filename} to ${downloadDir}`);
-    });
+        if (!['stable', 'insiders'].includes(build)) {
+            console.error(`Invalid build: ${build}`);
+            process.exit(1);
+        }
 
-    request.on('error', error => {
-        console.error(error);
-        process.exit(1);
+        const os =
+            process.platform === 'win32'
+                ? `win32-${process.arch}-archive`
+                : process.platform === 'darwin'
+                    ? 'darwin-universal'
+                    : process.platform === 'linux'
+                        ? `linux-${process.arch}`
+                        : 'unknown';
+
+        if (os === 'unknown') {
+            console.error(`Unsupported platform: ${process.platform}`);
+            process.exit(1);
+        }
+
+        const url = `https://code.visualstudio.com/sha/download?build=${build === 'insiders' ? 'insider' : build}&os=${os}`;
+        const filename = double['filename'] || single['f'] || `vscode-${build}-${os}-${Date.now()}.${process.platform === 'linux' ? 'tar.gz' : 'zip'}`;
+        const downloadDir = double['download-directory'] || single['d'] || path.join(process.cwd(), 'downloads');
+
+        if (typeof filename !== 'string') {
+            console.error(`Invalid filename: ${filename}`);
+            process.exit(1);
+        }
+        if (typeof downloadDir !== 'string') {
+            console.error(`Invalid download directory: ${downloadDir}`);
+            process.exit(1);
+        }
+
+        const downloadPath = path.join(downloadDir, filename);
+
+        if (!fs.existsSync(downloadDir)) {
+            fs.mkdirSync(downloadDir, { recursive: true });
+        }
+
+        console.log(`Downloading ${url} to ${downloadPath}`);
+
+        const file = fs.createWriteStream(downloadPath);
+
+        const request = https.get(url, response => {
+            if (response.statusCode === 302) {
+                console.log(`Redirecting to ${response.headers.location}`);
+                request.abort();
+                https.get(response.headers.location, response => {
+                    handleRes(response, filename, file);
+                }).on('error', error => {
+                    console.error(error);
+                    process.exit(1);
+                }).on('end', () => {
+                    console.log(`Downloaded ${filename}`);
+                    process.exit(0);
+                });
+            } else {
+                handleRes(response, filename, file);
+            }
+        });
+
+        file.on('finish', () => {
+            file.close();
+            console.log(`\nDownloaded ${filename} to ${downloadDir}`);
+            resolve(path.join(downloadDir, filename));
+        });
+
+        request.on('error', error => {
+            console.error(error);
+            process.exit(1);
+        });
     });
-} else if (action === 'install') {
+}
+
+async function installAction(double: {
+    [key: string]: string | boolean
+}, single: {
+    [key: string]: string | boolean
+}) {
     const file = double['file'] || single['f'];
     const build =
         double['insiders'] || single['i']
@@ -461,7 +711,13 @@ if (action === 'help') {
         console.log(`Installed ${file} to ${dir}`);
         process.exit(0);
     }
-} else if (action === 'link') {
+}
+
+async function linkAction(double: {
+    [key: string]: string | boolean
+}, single: {
+    [key: string]: string | boolean
+}) {
     const build = double['build'] || single['b'] || 'stable';
 
     if (typeof build !== 'string') {
@@ -524,3 +780,109 @@ if (action === 'help') {
 
     fs.symlinkSync(path.join(bindir, `code${build === 'insiders' ? '-insiders' : ''}`), path.join(symlinkdir, `code${build === 'insiders' ? '-insiders' : ''}`), 'file');
 }
+
+async function updateAction(double: {
+    [key: string]: string | boolean
+}, single: {
+    [key: string]: string | boolean
+}) {
+    const build = double['build'] || single['b'] || 'stable';
+
+    if (typeof build !== 'string') {
+        console.error(`Invalid build: ${build}`);
+        process.exit(1);
+    }
+
+    const dir = double['install-directory'] || single['d'] || (process.platform === 'linux'
+        ? `/usr/share/code${build === 'insiders' ? '-insiders' : ''}` :
+        process.platform === 'win32'
+            ? path.join(process.env.LOCALAPPDATA, 'Programs', `Microsoft VS Code${build === 'insiders' ? ' Insiders' : ''}`)
+            : path.join(process.env.HOME, 'Applications', `Visual Studio Code${build === 'insiders' ? ' - Insiders' : ''}`));
+
+    if (typeof dir !== 'string') {
+        console.error(`Invalid install directory: ${dir}`);
+        process.exit(1);
+    }
+
+    if (!fs.existsSync(dir)) {
+        console.error(`Directory ${dir} does not exist`);
+        process.exit(1);
+    }
+
+    const bindir = path.join(dir, 'bin');
+
+    if (!fs.existsSync(bindir)) {
+        console.error(`Directory ${bindir} does not exist`);
+        process.exit(1);
+    }
+
+    if (process.platform === 'linux') {
+        try {
+            fs.accessSync(bindir, fs.constants.W_OK);
+        } catch (error) {
+            console.error(`Directory ${bindir} is not writable, please run as root (sudo)`);
+            process.exit(1);
+        }
+    }
+
+    console.log(`Updating ${bindir}`);
+
+    if (process.platform === 'linux') {
+        const execpath = cp.execSync('which code' + (build === 'insiders' ? '-insiders' : '')).toString().trim();
+
+        if (execpath === '') {
+            console.error(`File code${build === 'insiders' ? '-insiders' : ''} does not exist`);
+            process.exit(1);
+        }
+
+        let version = '';
+
+        if (build === 'stable') {
+            version = cp.execSync(execpath + ' --version').toString().trim().split('\n')[1].trim();
+        } else {
+            const versionfile = path.join(bindir, '..', 'resources', 'app', 'package.json');
+            const versionjson = JSON.parse(fs.readFileSync(versionfile, 'utf8'));
+            version = versionjson.distro;
+        }
+
+        const versions = await getVersions();
+
+        const osname = `linux-${process.arch}`;
+
+        const platformVersion = versions
+            .find(v => v.platform.os === osname);
+
+        if (!platformVersion) {
+            console.error(`No version found for ${osname}`);
+            process.exit(1);
+        }
+
+        if (platformVersion.version === version) {
+            console.log(`Already up to date: ${version}`);
+            process.exit(0);
+        }
+
+        const file = await downloadAction(double, single);
+
+        await installAction({
+            ...double,
+            file
+        }, single);
+    }
+}
+
+async function main() {
+    if (action === 'help') {
+        helpAction(double, single);
+    } else if (action === 'download') {
+        downloadAction(double, single);
+    } else if (action === 'install') {
+        installAction(double, single);
+    } else if (action === 'link') {
+        linkAction(double, single);
+    } else if (action === 'update') {
+        updateAction(double, single);
+    }
+}
+
+main();
