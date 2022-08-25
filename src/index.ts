@@ -62,6 +62,9 @@ function handleRes(response: http.IncomingMessage, filename: string, file: fs.Wr
 
     process.stdout.on('resize', () => {
         maxDownloadStatusLen = (process.stdout.columns - `Downloading ${filename}... `.length) - (3 + (`${maxLength} `.length * 2) + ' 100%'.length);
+        process.stdout.cursorTo(0);
+        process.stdout.clearLine(1);
+        process.stdout.write(`Downloading ${filename}... [`);
     });
 
     response.pipe(file);

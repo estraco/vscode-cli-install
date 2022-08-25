@@ -1,6 +1,6 @@
 {
   "name": "vscode-cli-install",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "",
   "main": "build/index.js",
   "scripts": {
@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "adm-zip": "^0.5.9",
-    "semver": "^7.3.7",
     "tar": "^6.1.11"
   },
   "bin": "./build/index.js",
