@@ -8,6 +8,19 @@ import cp from 'child_process';
 import tar from 'tar';
 import AdmZip from 'adm-zip';
 
+const chars = [
+    '⡀',
+    '⡄',
+    '⡆',
+    '⡇',
+    '⡏',
+    '⡟',
+    '⡿',
+    '⣿'
+];
+
+const updatesPerSecond = 333;
+
 function parseArgs(args: string[]) {
     const obj: {
         double: {
@@ -58,20 +71,25 @@ function handleRes(response: http.IncomingMessage, filename: string, file: fs.Wr
 
     console.log(`Downloading ${filename} (${maxLength} bytes)`);
 
-    let maxDownloadStatusLen = (process.stdout.columns - `Downloading ${filename}... `.length) - (3 + (`${maxLength} `.length * 2) + ' 100%'.length);
+    let maxDownloadStatusLen = Math.round(process.stdout.columns - `Downloading ${filename}... `.length) - (3 + (`${maxLength} `.length * 2) + ' 100%'.length);
 
-    process.stdout.on('resize', () => {
-        maxDownloadStatusLen = (process.stdout.columns - `Downloading ${filename}... `.length) - (3 + (`${maxLength} `.length * 2) + ' 100%'.length);
+    const resizeFn = () => {
+        maxDownloadStatusLen = Math.round(process.stdout.columns - `Downloading ${filename}... `.length) - (3 + (`${maxLength} `.length * 2) + ' 100%'.length);
         process.stdout.cursorTo(0);
         process.stdout.clearLine(1);
         process.stdout.write(`Downloading ${filename}... [`);
-    });
+    };
+
+    process.stdout.on('resize', resizeFn);
 
     response.pipe(file);
 
     process.stdout.write(`Downloading ${filename}... [`);
 
     let progress = 0;
+    const dlen = `Downloading ${filename}... [`.length;
+    const chunkSize = Math.floor(maxLength / maxDownloadStatusLen);
+    const finalchar = chars[chars.length - 1];
 
     const progressInterval = setInterval(() => {
         if (maxDownloadStatusLen < 10) {
@@ -80,11 +98,13 @@ function handleRes(response: http.IncomingMessage, filename: string, file: fs.Wr
 
             process.stdout.write(`Downloading ${filename}... ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
         } else {
-            process.stdout.cursorTo(`Downloading ${filename}... [`.length);
-            // process.stdout.write(`Downloading ${filename}... [${'#'.repeat(progress * maxDownloadStatusLen)}${'-'.repeat(maxDownloadStatusLen - progress * maxDownloadStatusLen)}] ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
-            process.stdout.write(`${'#'.repeat(progress * maxDownloadStatusLen)}${'-'.repeat(maxDownloadStatusLen - progress * maxDownloadStatusLen)}] ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
+            process.stdout.cursorTo(dlen);
+
+            const char = chars[Math.floor(((file.bytesWritten % chunkSize) / chunkSize) * chars.length)];
+
+            process.stdout.write(`${finalchar.repeat(Math.max(0, (progress * maxDownloadStatusLen) - 1))}${char}${'-'.repeat(maxDownloadStatusLen - progress * maxDownloadStatusLen)}] ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
         }
-    }, 5);
+    }, 1000 / updatesPerSecond);
 
     response.on('data', () => {
         progress = (file.bytesWritten / maxLength);
@@ -92,6 +112,7 @@ function handleRes(response: http.IncomingMessage, filename: string, file: fs.Wr
 
     response.on('end', () => {
         clearInterval(progressInterval);
+        process.stdout.removeListener('resize', resizeFn);
         process.stdout.cursorTo(0);
         process.stdout.clearLine(1);
         process.stdout.write(`Downloaded ${filename} (${maxLength} bytes)
@@ -308,7 +329,8 @@ if (![
     'install',
     'link',
     'update',
-    'help'
+    'help',
+    'versions'
 ].includes(action)) {
     console.error(`Invalid action: ${action}`);
     process.exit(1);
@@ -328,6 +350,7 @@ const sections: {
     install: Section;
     link: Section;
     update: Section;
+    versions: Section;
 } = {
     sections: [
         {
@@ -483,6 +506,17 @@ const sections: {
                     ? '/Applications/Visual Studio Code or /Applications/Visual Studio Code - Insiders'
                     : '/usr/share/code or /usr/share/code-insiders'
         }
+    ],
+    versions: [
+        {
+            keys: [
+                '--build',
+                '-b'
+            ],
+            description: 'The build to get versions for. Can either be stable, insiders, or all',
+            required: false,
+            default: 'all'
+        }
     ]
 };
 
@@ -546,12 +580,69 @@ async function helpAction(double: {
         case 'update':
             printSection('update');
             break;
+        case 'versions':
+            printSection('versions');
+            break;
         default:
             console.error(`Invalid section: ${section}`);
             process.exit(1);
     }
 
     process.exit(0);
+}
+
+async function getLatestVersion(build: 'stable' | 'insider') {
+    const _versions = await getVersions();
+
+    const versions = _versions
+        .filter(({ build: _build }) => _build === build);
+
+    const osname = `linux-${process.arch}`;
+
+    const platformVersion = versions
+        .find(v => v.platform.os === osname);
+
+    if (!platformVersion) {
+        console.error(`No version found for ${osname}`);
+        process.exit(1);
+    }
+
+    return platformVersion.hash;
+}
+
+function version(build?: 'all', binpath?: string): {
+    stable: string;
+    insiders: string;
+};
+function version(build: 'stable', binpath?: string): string;
+function version(build: 'insiders', binpath?: string): string;
+function version(build: 'stable' | 'insiders' | 'all' = 'all', binpath?: string) {
+    if (build === 'all') {
+        return {
+            stable: version('stable'),
+            insiders: version('insiders')
+        };
+    }
+
+    if (build !== 'stable' && build !== 'insiders') {
+        throw new Error(`Invalid build: ${build}`);
+    }
+
+    if (build === 'stable') {
+        binpath = binpath || cp.execSync('which code').toString().trim();
+
+        const version = cp.execSync(`${binpath} --version`).toString().split('\n')[1].trim();
+
+        return version;
+    } else {
+        binpath = binpath || cp.execSync('which code-insiders').toString().trim();
+
+        const packagejson = JSON.parse(fs.readFileSync(path.join(path.dirname(binpath), 'resources', 'app', 'package.json')).toString());
+
+        const version = packagejson.distro;
+
+        return version;
+    }
 }
 
 async function downloadAction(double: {
@@ -874,6 +965,39 @@ async function updateAction(double: {
     }
 }
 
+async function versionsAction(double: {
+    [key: string]: string | boolean
+}, single: {
+    [key: string]: string | boolean
+}) {
+    const build = double['build'] || single['b'] || 'all';
+
+    if (typeof build !== 'string') {
+        console.error(`Invalid build: ${build}`);
+        process.exit(1);
+    }
+
+    if (build !== 'all' && build !== 'stable' && build !== 'insiders') {
+        console.error(`Invalid build: ${build}`);
+        process.exit(1);
+    }
+
+    if (build === 'all') {
+        const [stable, insiders] = await Promise.all([getLatestVersion('stable'), getLatestVersion('insider')]);
+
+        console.log(`Latest Stable Version: ${stable}`);
+        console.log(`Latest Insiders Version: ${insiders}`);
+
+        const {
+            stable: currentStable,
+            insiders: currentInsiders
+        } = version();
+
+        console.log(`Current Stable Version: ${currentStable}`);
+        console.log(`Current Insiders Version: ${currentInsiders}`);
+    }
+}
+
 async function main() {
     if (action === 'help') {
         helpAction(double, single);
@@ -885,6 +1009,8 @@ async function main() {
         linkAction(double, single);
     } else if (action === 'update') {
         updateAction(double, single);
+    } else if (action === 'versions') {
+        versionsAction(double, single);
     }
 }
 
