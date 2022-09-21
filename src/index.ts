@@ -96,13 +96,13 @@ function handleRes(response: http.IncomingMessage, filename: string, file: fs.Wr
             process.stdout.cursorTo(0);
             process.stdout.clearLine(1);
 
-            process.stdout.write(`Downloading ${filename}... ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
+            process.stdout.write(`Downloading ${filename}... ${Math.round(progress * 100).toString().padStart(3, ' ')}% (${file.bytesWritten}/${maxLength})`);
         } else {
             process.stdout.cursorTo(dlen);
 
             const char = chars[Math.floor(((file.bytesWritten % chunkSize) / chunkSize) * chars.length)];
 
-            process.stdout.write(`${finalchar.repeat(Math.max(0, (progress * maxDownloadStatusLen) - 1))}${char}${'-'.repeat(maxDownloadStatusLen - progress * maxDownloadStatusLen)}] ${Math.round(progress * 100)}% (${file.bytesWritten}/${maxLength})`);
+            process.stdout.write(`${finalchar.repeat(Math.max(0, (progress * maxDownloadStatusLen) - 1))}${char}${'-'.repeat(maxDownloadStatusLen - progress * maxDownloadStatusLen)}] ${Math.round(progress * 100).toString().padStart(3, ' ')}% (${file.bytesWritten}/${maxLength})`);
         }
     }, 1000 / updatesPerSecond);
 
